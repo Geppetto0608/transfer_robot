@@ -20,7 +20,7 @@ setup(
     maintainer="hyeongjun",
     maintainer_email="phj990608@hanyang.ac.kr",
     description="ROS 2 Humble docking stack for the real patient transfer robot.",
-    license="Apache-2.0",
+    license="Research-Only Non-Commercial (see LICENSE)",
     entry_points={
         "console_scripts": [
             "bed_detector_node = transfer_robot.node:main",

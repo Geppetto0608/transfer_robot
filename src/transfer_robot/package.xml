@@ -4,7 +4,7 @@
   <version>1.0.0</version>
   <description>ROS 2 Humble LiDAR perception and docking control for the real patient transfer robot.</description>
   <maintainer email="hyeongjun@example.com">hyeongjun</maintainer>
-  <license>Apache-2.0</license>
+  <license file="LICENSE">Research-Only Non-Commercial</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 

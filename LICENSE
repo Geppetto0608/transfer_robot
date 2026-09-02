@@ -1,0 +1,89 @@
+Patient Transfer Robot — 연구 목적 한정 라이선스
+Research-Only, Non-Commercial License
+
+Copyright (c) 2026 hyeongjun (GitHub: Geppetto0608). All rights reserved.
+
+────────────────────────────────────────────────────────────────────────
+한국어
+
+1. 허용 범위 (연구 목적 한정)
+   본 소프트웨어와 관련 문서(이하 "본 소프트웨어")는 오직 비영리 학술·연구
+   목적으로만 사용, 복제, 수정, 배포할 수 있다. 연구 목적 이외의 모든 사용은
+   금지된다.
+
+2. 상업적 이용 금지
+   본 소프트웨어의 전부 또는 일부를 상업적 목적으로 사용할 수 없다. 여기에는
+   판매, 대여, 재라이선스, 유료 서비스 제공, 상용 제품 또는 상용 서비스에의
+   통합, 영리 활동을 위한 내부 사용이 포함되나 이에 한정되지 않는다.
+
+3. 저작권 표시 필수
+   본 소프트웨어의 사본 또는 상당 부분을 포함하는 모든 배포물에는 위 저작권
+   표시와 본 라이선스 전문을 그대로 포함해야 한다. 본 소프트웨어를 사용한
+   연구 결과를 논문, 발표, 보고서 등으로 공개할 경우 원저작자를 명시해야 한다.
+
+4. 2차적 저작물
+   수정본 및 파생 저작물에는 변경 사실을 명시해야 하며, 동일한 조건(본 라이선스)
+   하에서만 배포할 수 있다.
+
+5. 예외 허가
+   위 범위를 벗어나는 이용(상업적 이용 포함)은 저작권자의 사전 서면 허가가
+   있어야 한다.
+
+6. 보증의 부인 및 책임의 제한
+   본 소프트웨어는 명시적이든 묵시적이든 어떠한 보증도 없이 "있는 그대로"
+   제공된다. 상품성, 특정 목적에의 적합성, 비침해에 대한 보증을 포함하여
+   어떠한 보증도 하지 않는다. 저작권자는 본 소프트웨어의 사용 또는 사용
+   불능으로 발생하는 어떠한 청구, 손해, 기타 책임에 대해서도 책임지지 않는다.
+
+7. 안전 고지
+   본 소프트웨어는 이동형 로봇 플랫폼을 제어하며 물리적 위험을 수반한다.
+   실제 하드웨어에서의 사용은 전적으로 사용자의 책임이며, 의료기기로서의
+   사용을 승인받은 바 없다.
+
+8. 라이선스 위반
+   본 조건을 위반하는 즉시 본 라이선스에 따라 부여된 권리는 자동으로 소멸한다.
+
+────────────────────────────────────────────────────────────────────────
+English (reference translation; the Korean text governs)
+
+1. Permitted Use (Research Only)
+   Permission is hereby granted to use, copy, modify, and distribute this
+   software and its documentation ("the Software") solely for non-commercial
+   academic and research purposes. Any use other than research purposes is
+   prohibited.
+
+2. No Commercial Use
+   The Software, in whole or in part, may not be used for commercial purposes.
+   This includes but is not limited to sale, rental, sublicensing, provision of
+   paid services, incorporation into commercial products or services, and
+   internal use in support of for-profit activities.
+
+3. Attribution Required
+   All copies or substantial portions of the Software must retain the above
+   copyright notice and this entire license text. Any publication, presentation,
+   or report describing results obtained with the Software must credit the
+   original author.
+
+4. Derivative Works
+   Modified versions and derivative works must carry prominent notices stating
+   that changes were made, and may be distributed only under these same terms.
+
+5. Exceptions
+   Any use beyond the above scope, including commercial use, requires prior
+   written permission from the copyright holder.
+
+6. Disclaimer of Warranty and Limitation of Liability
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+   IN THE SOFTWARE.
+
+7. Safety Notice
+   The Software controls a mobile robot platform and involves physical risk.
+   Use on real hardware is entirely at the user's own risk. It is not approved
+   or certified for use as a medical device.
+
+8. Termination
+   Any breach of these terms automatically terminates the rights granted herein.
