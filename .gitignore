@@ -1,0 +1,11 @@
+build/
+install/
+log/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.colcon/
+
+# Local legacy/reference sources are not part of the real Humble package.
+reference/
+src/bed_docking/

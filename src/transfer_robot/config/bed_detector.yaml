@@ -1,0 +1,108 @@
+bed_detector:
+  ros__parameters:
+    # ROS 입력 설정
+    # bringup/sensors.launch.py가 3대 Mid-360을 base_link 기준으로 병합한 전체 cloud
+    input_topic: /livox_merge/merged_pointcloud
+    base_frame: base_link  # +X: 전방, +Y: 좌측, +Z: 위; 도킹은 -Y(우측)
+    # AUTO: PREALIGN/초기 INSERT=FOOT, 후반 INSERT/RETRACT=TOP_OUTLINES
+    detection_mode: AUTO
+    enabled: true
+    use_sim_time: false
+
+    # ROI: base_link 기준 검출 범위 [m]. 2026-09-01 실측 발판 중심은
+    # 약 (0.13, -1.81, 0.46)이지만, 도킹 중 상대 이동과 침대 전체 길이를
+    # 포함하도록 각 방향에 넉넉한 여유를 둔다.
+    roi_x_min: -1.2
+    roi_x_max: 1.2
+    roi_y_min: -4.3
+    roi_y_max: 1.5
+    roi_z_min: 0.15
+    roi_z_max: 1.00
+
+    # 다운샘플링 및 노이즈 제거
+    voxel_leaf: 0.03
+    outlier_radius: 0.12
+    outlier_min_neighbors: 2
+    # 상단/하단 라이다가 서로 다른 면을 번갈아 보는 문제를 줄이기 위해 최근
+    # 병합 cloud 3장을 최대 0.6초 누적한 뒤 다시 voxel 처리해서 판단한다.
+    temporal_fusion_frames: 3
+    temporal_fusion_max_age: 0.60
+
+    # Euclidean clustering
+    cluster_tolerance: 0.14
+    cluster_min_points: 8
+    cluster_max_points: 12000
+
+    # FOOT_RANSAC: PREALIGN에서 침대 입구 가로선 검출
+    # 클릭한 대각 모서리의 XY 폭은 약 0.885 m. RANSAC 끝점/클릭 오차를 허용한다.
+    expected_foot_width: 0.88
+    foot_width_tolerance: 0.25
+    expected_bed_length: 2.04
+    line_distance_threshold: 0.07
+    line_min_points: 30
+    line_min_observed_length: 0.50
+    # 침대 판 가로선은 base X, 침대는 로봇 오른쪽(-Y) 방향으로 길게 놓인다.
+    foot_line_axis: "X"              # Humble YAML에서 bool이 되지 않도록 문자열로 명시
+    foot_bed_axis_sign: -1.0
+    foot_min_abs_direction: 0.88     # 1에 가까울수록 선택한 축과 평행
+    # 추적이 시작된 뒤에는 0.20 m 앞의 다른 평행 구조로 후보가 바뀌지 않게 한다.
+    foot_tracking_position_weight: 4.0
+    foot_tracking_yaw_weight: 2.5
+    # 현재 정렬 위치 12프레임 실측 최적층. 상판/두꺼운 상부 프레임을 FOOT
+    # 후보에서 제외한다: 중심 Y range 6 mm, yaw range 약 3.0도.
+    foot_z_min: 0.22
+    foot_z_max: 0.38
+
+    # SIDE_RANSAC: INSERT에서 침대 길이(-Y) 방향 양쪽 테두리 검출
+    side_expected_width: 0.90
+    side_width_tolerance: 0.24
+    side_min_observed_length: 0.55
+    side_min_abs_direction_x: 0.88  # 1에 가까울수록 X축과 평행
+    side_parallel_tolerance_deg: 14.0
+    side_bin_width: 0.05
+    side_bin_min_points: 6
+    side_boundary_low_percentile: 3.0
+    side_boundary_high_percentile: 97.0
+    side_boundary_distance_threshold: 0.04
+    side_boundary_min_bins: 5
+    # 상판과 두꺼운 하부 프레임을 XY 점유 셀로 합쳐 외곽 두 선을 우선 선택한다.
+    side_projection_leaf: 0.04
+    side_symmetry_weight: 2.0
+    side_envelope_preference: 0.35
+    side_tracking_position_weight: 1.2
+    bed_axis_yaw: -1.57079632679      # -pi/2: base_link -Y가 침대 진입 방향
+
+    # TOP_OUTLINES: 상판 높이층에서 양쪽 긴 외곽선을 각각 RANSAC으로 추적한다.
+    # 현재 완전 정렬 실측: 상판/프레임 외곽선의 주 높이층은 0.54~0.70 m,
+    # 반복해서 보이는 두 긴 outline 사이 간격은 약 0.740 m이다.
+    top_z_min: 0.54
+    top_z_max: 0.70
+    top_expected_width: 0.74
+    top_width_tolerance: 0.12
+    top_length_tolerance: 0.45
+    top_min_observed_length: 0.55
+    top_min_points: 40
+    top_max_yaw_delta: 0.26           # 기존 rectangle 진단 모드 호환값
+    top_entrance_surface_offset: 0.0  # 발판에서 실제 상판 시작점까지 안쪽 offset
+    top_projection_leaf: 0.04
+    # 직전 발판 pose를 기준으로 침대 방향의 회전된 동적 XY ROI를 만든다.
+    top_roi_behind: 0.25
+    top_roi_ahead: 0.35
+    top_roi_cross_margin: 0.20
+    top_handoff_max_position_jump: 0.45
+    top_handoff_max_yaw_jump: 0.30
+    # FOOT와 TOP은 서로 다른 물리 모서리를 보므로 전환 순간의 고정 offset을
+    # 자동 측정한다. 현재 실측 raw 위치차 약 0.53 m, yaw 차 약 3.2도.
+    top_calibration_max_position_offset: 0.65
+    top_calibration_max_yaw_offset: 0.12
+    top_switch_confirm_frames: 3
+    publish_top_roi: true             # RViz: /bed_detection/top_roi
+
+    # 검출 확정, 추적 및 Low-pass filter
+    # 현재 3-LiDAR 실측 FOOT 후보는 약 0.395. 제어기와 같은 초기 문턱을 쓴다.
+    min_confidence: 0.35
+    confirm_frames: 3
+    tracking_reset_frames: 10
+    tracking_max_position_jump: 0.12  # m; 발판 뒤쪽 평행선으로 순간 전환 방지
+    tracking_max_yaw_jump: 0.26       # rad
+    filter_alpha: 0.25  # 클수록 빠르고, 작을수록 부드럽게 반응

@@ -1,0 +1,78 @@
+docking_controller:
+  ros__parameters:
+    pose_topic: /detected_dock_pose
+    confidence_topic: /bed_detection/confidence
+    detection_mode_topic: /bed_detection/mode
+    cmd_vel_topic: /cmd_vel
+    pose_frame: base_link
+    mode_feedback_topic: /drive_mode_feedback
+    require_mode_feedback: true
+    enabled: false
+    # 기본 실기 흐름: 사전정렬 후 INSERT까지 연속 수행한다.
+    prealign_only: false
+    # INSERT 시작 후 0.20 m까지는 FOOT만 사용하고 그 뒤 TOP 검출을 시작한다.
+    top_handoff_start_distance: 0.20
+    # 첫 전환 시험은 TOP 검색 시작 후 추가 0.35 m 안에 전환하지 못하면 정지한다.
+    stop_on_top_handoff: false
+    top_handoff_test_max_insert_distance: 0.35
+    use_sim_time: false
+
+    min_confidence: 0.35
+    # 현재 3-LiDAR 병합 + RANSAC 실측 처리율은 약 1.3 Hz이다.
+    detection_timeout: 1.5
+
+    # Stage 1: ACKERMANN 직선 주행으로 발판 수직 중심선(cross=0)에 정렬.
+    prealign_cross_tolerance: 0.08
+    prealign_hold_frames: 3
+    mode_switch_stop_frames: 5
+    mode_switch_settle_frames: 5
+    mode_switch_timeout: 8.0
+    prealign_max_linear: 0.04
+    prealign_min_linear: 0.01
+    prealign_k_cross: 0.6
+
+    # Stage 2: 완전 정지 후 DIFF 제자리 회전으로 침대 각도 정렬.
+    angle_align_yaw_tolerance: 0.035  # 약 2도
+    angle_align_hold_frames: 5
+    angle_align_max_angular: 0.05
+    angle_align_min_angular: 0.015
+    angle_align_k_yaw: 0.4
+
+    # 현재는 작업자가 뒤 벽 0.30 m 지점에서 직접 정지하는 시험 단계다.
+    # -10 m는 자동 DOCKED 판정을 사실상 비활성화하는 도달 불가능 목표다.
+    target_bed_yaw: -1.57079632679
+    target_entrance_along: -10.0
+    target_cross: 0.0
+
+    # Stage 3: DIFF로 base -Y 방향 진입하며 cross/yaw를 동시 보정.
+    stop_along: 0.05
+    stop_cross: 0.05
+    stop_yaw: 0.06
+    insert_max_speed: 0.02
+    insert_max_reverse_speed: 0.02
+    insert_max_angular: 0.05
+    insert_k_along: 0.4
+    insert_k_cross: 0.7
+    insert_k_yaw: 0.6
+    # 정지 실측 검출 흔들림보다 작은 오차는 따라가지 않는다.
+    insert_cross_deadband: 0.02
+    insert_yaw_deadband: 0.02
+    insert_abort_cross: 0.25
+    insert_abort_yaw: 0.20
+    # 서비스 기반 배출: DIFF에서 +base Y로 이동하면서 침대 중심/각도를 보정한다.
+    retract_speed: 0.04
+    retract_max_angular: 0.05
+    retract_k_cross: 0.7
+    retract_k_yaw: 0.6
+    retract_cross_deadband: 0.02
+    retract_yaw_deadband: 0.02
+    retract_abort_cross: 0.25
+    retract_abort_yaw: 0.20
+    control_rate: 20.0
+
+platform_mode_bridge:
+  ros__parameters:
+    request_topic: /drive_mode
+    hardware_mode_topic: /mode
+    hardware_status_topic: /motor_node/drive_mode
+    feedback_topic: /drive_mode_feedback
