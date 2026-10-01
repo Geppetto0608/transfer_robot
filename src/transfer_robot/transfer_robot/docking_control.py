@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import cos, pi, sin
+from math import cos, isfinite, pi, sin
 
 
 def clamp(value: float, low: float, high: float) -> float:
@@ -49,6 +49,24 @@ def evaluate_top_handoff_test(
         return "TOP_HANDOFF_COMPLETE"
     if abs(current_along - insert_start_along) >= max(0.0, max_insert_distance):
         return "TOP_HANDOFF_NOT_FOUND"
+    return None
+
+
+def insertion_wall_safety_state(
+    wall_distance: float,
+    wall_age: float,
+    required: bool,
+    stop_distance: float,
+    timeout: float,
+) -> str | None:
+    """Return a fail-safe insertion state from the top-LiDAR wall range."""
+    fresh = isfinite(float(wall_distance)) and float(wall_age) <= max(
+        0.0, float(timeout)
+    )
+    if fresh and float(wall_distance) <= float(stop_distance):
+        return "WALL_STOPPED"
+    if required and not fresh:
+        return "WALL_NOT_DETECTED"
     return None
 
 

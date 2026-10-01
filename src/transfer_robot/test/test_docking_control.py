@@ -6,6 +6,7 @@ from transfer_robot.docking_control import (
     compute_prealign_command,
     compute_retract_command,
     evaluate_top_handoff_test,
+    insertion_wall_safety_state,
     insertion_detection_phase,
 )
 
@@ -162,6 +163,36 @@ def test_retract_ignores_small_pose_noise():
     )
     assert cmd.state == "RETRACT"
     assert cmd.angular == 0.0
+
+
+def test_insert_stops_when_wall_reaches_calibrated_clearance():
+    assert (
+        insertion_wall_safety_state(1.04, 0.1, True, 1.05, 0.6)
+        == "WALL_STOPPED"
+    )
+
+
+def test_insert_stops_if_required_wall_measurement_is_missing_or_stale():
+    assert (
+        insertion_wall_safety_state(float("inf"), 0.1, True, 1.05, 0.6)
+        == "WALL_NOT_DETECTED"
+    )
+    assert (
+        insertion_wall_safety_state(2.0, 0.7, True, 1.05, 0.6)
+        == "WALL_NOT_DETECTED"
+    )
+
+
+def test_insert_continues_with_fresh_wall_beyond_stop_clearance():
+    assert insertion_wall_safety_state(1.50, 0.1, True, 1.05, 0.6) is None
+    assert insertion_wall_safety_state(float("inf"), 99.0, False, 1.05, 0.6) is None
+
+
+def test_optional_wall_still_stops_when_it_becomes_close():
+    assert (
+        insertion_wall_safety_state(1.04, 0.1, False, 1.05, 0.6)
+        == "WALL_STOPPED"
+    )
 
 
 def test_stage_two_diff_corrects_while_inserting():

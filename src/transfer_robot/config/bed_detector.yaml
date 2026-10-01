@@ -106,3 +106,37 @@ bed_detector:
     tracking_max_position_jump: 0.12  # m; 발판 뒤쪽 평행선으로 순간 전환 방지
     tracking_max_yaw_jump: 0.26       # rad
     filter_alpha: 0.25  # 클수록 빠르고, 작을수록 부드럽게 반응
+
+# 도킹 위치로 올라간 top Mid-360의 원본 cloud에서 침대 머리쪽 수직 벽을 검출한다.
+# 실제 topic/frame은 2026-10-01 ros2 topic list 및 TF로 확인한 값이다.
+wall_detector:
+  ros__parameters:
+    input_topic: /livox/lidar_192_168_1_135
+    base_frame: base_link
+    bed_axis_yaw: -1.57079632679
+    # 원본 top cloud를 전부 처리하면 wall detector가 CPU 4코어 이상을 사용해
+    # 침대 pose 발행을 지연시킨다. 4 Hz, 1/3 표본만으로 큰 벽 평면을 검출한다.
+    processing_interval: 0.25
+    point_stride: 3
+    min_distance: 0.80
+    max_distance: 4.30
+    corridor_half_width: 1.00
+    z_min: 2.00
+    z_max: 3.00
+    bin_size: 0.05
+    min_points: 100
+    min_vertical_span: 0.01
+    min_cross_span: 0.80
+    # 요청한 wall ROI: base_link 기준 z >= 2.0 m, 좌우 +/-1.0 m.
+    # 진행축 0.8 m 이내는 top LiDAR 장착부/플랫폼 근접 반사라 제외한다.
+    # 이 높이에는 상부 수평면도 있으므로 주변 거리 bin보다 점이 1.5배 이상
+    # 몰리는 횡방향 선만 벽으로 인정한다.
+    height_bin_size: 0.10
+    min_occupied_height_bins: 1
+    height_bin_min_points: 2
+    low_height_limit: 3.00
+    min_low_height_fraction: 0.0
+    peak_neighbor_bins: 3
+    min_peak_ratio: 1.50
+    confirm_frames: 3
+    max_frame_jump: 0.15

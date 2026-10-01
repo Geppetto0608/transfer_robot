@@ -77,6 +77,16 @@ ros2 launch bringup sensors.launch.py
 ros2 launch transfer_robot transfer_robot.launch.py
 ```
 
+숫자로 서비스를 조작하려면 별도 터미널에서 콘솔을 실행한다.
+
+```bash
+ros2 run transfer_robot docking_console
+```
+
+`1`은 진입 시작, `2`는 수동 정지할 때까지 계속하는 배출 시작, `3`은 현재 동작 정지,
+`4`는 ACKERMANN 복귀 및 제어 해제, `5`는 상태 확인이다. `3`은 배출 중에는
+DIFF 조향을 유지한 채 정지하고, 그 외 단계에서는 도킹 제어를 비활성화한다.
+
 병합 토픽 이름을 변경한 경우에만 launch 인자로 덮어쓴다.
 
 ```bash
@@ -90,16 +100,29 @@ launch는 검출기, 도킹 제어기, `platform_mode_bridge`를 실행한다. �
 FOOT 0.20 m 삽입, TOP outline 삽입을 연속 수행한다. 현재 최종 거리는 작업자가
 직접 정지하는 시험 설정이다.
 
+같은 launch가 `wall_detector`도 실행한다. 이 노드는 실제 top Mid-360 토픽
+`/livox/lidar_192_168_1_135`에서 침대 진행축에 수직인 벽 평면을 찾고
+`/bed_detection/wall_range`를 발행한다. 현재 정지 위치의 실측 벽 거리는
+약 1.029 m이며 controller는 1.05 m에서 먼저 정지한다. 벽 검출 ROI는 base_link
+기준 `z >= 2.0 m`, 좌우 `+/-1.0 m`, 진행축 거리 `0.8~4.3 m`다. 벽이 아직
+top LiDAR 시야 밖이거나 range가 순간적으로 끊겨도 기존 INSERT를 유지하고,
+안정적인 벽 거리만 정지에 사용한다.
+
 launch 시작 1초 뒤 `/docking`에 `std_msgs/msg/Bool {data: true}`를 한 번 발행해
 외부 `top_tf_switcher`의 상단 LiDAR TF를 도킹 위치로 전환한다.
 
-삽입된 상태에서 저속으로 배출하려면 `RETRACT` 서비스를 사용한다. 서비스는 DIFF
+삽입은 정렬 완료 위치의 실측 along 약 `1.105 m`에서 2.0 m 진입하도록 계산한
+`target_entrance_along: -0.90`에 도달하면 `DOCKED`로 정지한다. 이 값은 침대나
+라이다 장착 위치가 바뀌면 반드시 다시 측정한다.
+
+삽입된 상태에서 작업자가 버튼을 눌러 저속으로 배출하려면 `RETRACT` 서비스를 사용한다. 서비스는 DIFF
 피드백과 상판의 두 긴 외곽선(`TOP_OUTLINES`) pose를 확인한 뒤 `base_link +Y`
-방향으로 이동하면서 중심선과 yaw를
-동시에 보정한다. pose가 끊기거나 신뢰도가 낮거나 정렬 오차가 제한을 넘으면 정지하며,
-자동 거리 종료는 하지 않는다. `retract false`는 DIFF와 검출 추적을 유지한 채 일시
-정지하므로 같은 서비스에 `true`를 다시 보내 바로 재개할 수 있다. 아커만으로 완전히
-복귀하려면 `/docking_controller/enable`에 `false`를 보낸다.
+방향으로 이동하면서 중심선과 yaw를 동시에 보정한다. 자동 거리 제한은 없으며
+`retract false`를 보낼 때까지 계속 배출한다. pose가 끊기거나 신뢰도가 낮거나
+정렬 오차가 제한을 넘으면 안전 정지한다. `retract false`는 DIFF와 검출 추적을
+유지한 채 정지하므로, 같은 서비스에 `true`를 다시 보내 재개할 수 있다.
+아커만으로 완전히 복귀하려면
+`/docking_controller/enable`에 `false`를 보낸다.
 
 ```bash
 ros2 service call /docking_controller/retract std_srvs/srv/SetBool "{data: true}"
@@ -158,6 +181,7 @@ ros2 topic echo /docking_controller/status
 | 구분 | 이름 | 타입/의미 |
 |---|---|---|
 | 입력 | `/livox_merge/merged_pointcloud` | 3대가 `base_link`로 변환된 `sensor_msgs/msg/PointCloud2` |
+| 입력 | `/livox/lidar_192_168_1_135` | 벽 검출용 top Mid-360 원본 PointCloud2 |
 | 입력 | TF | 병합 노드에서 사용하는 `base_link <- livox_top/front/rear` |
 | 입력 | `/motor_node/drive_mode` | 하부제어기 모드 상태 문자열 |
 | 출력 | `/detected_dock_pose` | `base_link` 기준 침대 입구 pose |
@@ -166,6 +190,9 @@ ros2 topic echo /docking_controller/status
 | 출력 | `/bed_detection/ransac_inliers` | 선택된 기하 모델 근거점 |
 | 출력 | `/bed_detection/top_roi` | 발판 pose와 상판 Z층으로 자른 동적 회전 ROI |
 | 출력 | `/bed_detection/markers` | RViz 검출 마커 |
+| 출력 | `/bed_detection/wall_range` | top LiDAR가 측정한 진행축 방향 벽 거리 |
+| 출력 | `/bed_detection/wall_points` | 벽으로 판정된 PointCloud2 |
+| 출력 | `/bed_detection/wall_marker` | 검출된 벽 평면 Marker |
 | 출력 | `/cmd_vel` | 플랫폼 속도 명령 |
 | 출력 | `/drive_mode` | `DIFF` 또는 `ACKERMANN` 요청 |
 | 출력 | `/mode` | 하부제어기 모드 코드, 1 또는 2 |
@@ -184,6 +211,8 @@ ros2 topic echo /docking_controller/status
 - 모드 전환이 8초 안에 완료되지 않으면 `MODE_SWITCH_TIMEOUT`으로 정지한다.
 - 삽입 중 횡오차 0.25 m 또는 yaw 오차 0.20 rad 초과 시
   `INSERT_ALIGNMENT_LOST`로 정지한다.
+- 삽입 중 top LiDAR 벽 거리가 1.05 m 이하로 5프레임 연속 확인되면
+  `WALL_STOPPED`로 정지한다. 벽 미검출만으로는 진입을 중단하지 않는다.
 - 배출 중에도 침대 중심선/yaw를 보정하며 같은 제한을 넘으면
   `RETRACT_ALIGNMENT_LOST`로 정지한다.
 - 비활성화/종료 시 0 속도와 ACKERMANN 복귀 요청을 발행한다.

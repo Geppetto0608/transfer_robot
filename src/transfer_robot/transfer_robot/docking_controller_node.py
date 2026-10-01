@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import atan2, cos, sin
+from math import atan2, cos, inf, isfinite, sin
 from time import monotonic
 
 import rclpy
@@ -8,6 +8,7 @@ from geometry_msgs.msg import PoseStamped, Twist
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Range
 from std_msgs.msg import Float32, String
 from std_srvs.srv import SetBool
 
@@ -17,6 +18,7 @@ from .docking_control import (
     compute_prealign_command,
     compute_retract_command,
     evaluate_top_handoff_test,
+    insertion_wall_safety_state,
     insertion_detection_phase,
 )
 
@@ -49,7 +51,7 @@ class DockingControllerNode(Node):
         self.declare_parameter("top_handoff_start_distance", 0.35)
         self.declare_parameter("top_handoff_test_max_insert_distance", 0.35)
         self.declare_parameter("min_confidence", 0.45)
-        self.declare_parameter("detection_timeout", 0.6)
+        self.declare_parameter("detection_timeout", 3.0)
         self.declare_parameter("prealign_cross_tolerance", 0.08)
         self.declare_parameter("prealign_hold_frames", 3)
         self.declare_parameter("mode_switch_stop_frames", 5)
@@ -64,7 +66,7 @@ class DockingControllerNode(Node):
         self.declare_parameter("angle_align_min_angular", 0.04)
         self.declare_parameter("angle_align_k_yaw", 0.6)
         self.declare_parameter("target_bed_yaw", -1.5707963267948966)
-        self.declare_parameter("target_entrance_along", -1.02)
+        self.declare_parameter("target_entrance_along", -0.90)
         self.declare_parameter("target_cross", 0.0)
         self.declare_parameter("stop_along", 0.05)
         self.declare_parameter("stop_cross", 0.05)
@@ -87,6 +89,11 @@ class DockingControllerNode(Node):
         self.declare_parameter("retract_yaw_deadband", 0.02)
         self.declare_parameter("retract_abort_cross", 0.25)
         self.declare_parameter("retract_abort_yaw", 0.20)
+        self.declare_parameter("wall_range_topic", "/bed_detection/wall_range")
+        self.declare_parameter("wall_required_for_insert", True)
+        self.declare_parameter("wall_stop_distance", 1.05)
+        self.declare_parameter("wall_range_timeout", 0.60)
+        self.declare_parameter("wall_stop_confirm_frames", 5)
         self.declare_parameter("control_rate", 20.0)
 
         self.enabled = bool(self.get_parameter("enabled").value)
@@ -105,6 +112,9 @@ class DockingControllerNode(Node):
         self.insert_start_along: float | None = None
         self.top_handoff_search_start_along: float | None = None
         self.mode_switch_started = 0.0
+        self.wall_distance = inf
+        self.last_wall_time = 0.0
+        self.wall_close_hit_streak = 0
 
         self.create_subscription(
             PoseStamped, str(self.get_parameter("pose_topic").value), self.pose_callback, 10
@@ -116,6 +126,12 @@ class DockingControllerNode(Node):
             String,
             str(self.get_parameter("detection_mode_topic").value),
             self.detection_mode_callback,
+            10,
+        )
+        self.create_subscription(
+            Range,
+            str(self.get_parameter("wall_range_topic").value),
+            self.wall_range_callback,
             10,
         )
         latched_qos = QoSProfile(
@@ -165,6 +181,16 @@ class DockingControllerNode(Node):
     def detection_mode_callback(self, message: String) -> None:
         self.detection_mode_feedback = message.data.strip().upper()
 
+    def wall_range_callback(self, message: Range) -> None:
+        self.wall_distance = float(message.range)
+        self.last_wall_time = monotonic()
+        if isfinite(self.wall_distance) and self.wall_distance <= float(
+            self.p("wall_stop_distance")
+        ):
+            self.wall_close_hit_streak += 1
+        else:
+            self.wall_close_hit_streak = 0
+
     def publish_stop(self, state: str) -> None:
         self.cmd_pub.publish(Twist())
         self.publish_state(state)
@@ -195,6 +221,7 @@ class DockingControllerNode(Node):
         self.detection_mode_feedback = "UNKNOWN"
         self.insert_start_along = None
         self.top_handoff_search_start_along = None
+        self.wall_close_hit_streak = 0
         if not self.enabled:
             self.publish_mode(self.MODE_ACKERMANN)
             self.publish_phase("PREALIGN")
@@ -248,10 +275,12 @@ class DockingControllerNode(Node):
                 2.0 * (q.w * q.z + q.x * q.y),
                 1.0 - 2.0 * (q.y * q.y + q.z * q.z),
             )
+            entrance_x = float(self.pose.pose.position.x)
+            entrance_y = float(self.pose.pose.position.y)
             command = compute_retract_command(
                 speed=float(self.p("retract_speed")),
-                entrance_x=float(self.pose.pose.position.x),
-                entrance_y=float(self.pose.pose.position.y),
+                entrance_x=entrance_x,
+                entrance_y=entrance_y,
                 bed_yaw=yaw,
                 target_cross=float(self.p("target_cross")),
                 max_angular=float(self.p("retract_max_angular")),
@@ -312,10 +341,10 @@ class DockingControllerNode(Node):
             self.publish_stop("MOTOR_MODE_FAILED")
             return
 
-        if self.phase == "DOCKED":
+        if self.phase in ("DOCKED", "WALL_STOPPED"):
             self.publish_mode(self.MODE_DIFF)
             self.publish_phase("DOCKED")
-            self.publish_stop("DOCKED")
+            self.publish_stop(self.phase)
             return
 
         if self.phase == "MODE_SWITCH_STOP":
@@ -423,6 +452,26 @@ class DockingControllerNode(Node):
                 ),
             )
             self.publish_phase(perception_phase)
+            wall_state = insertion_wall_safety_state(
+                wall_distance=self.wall_distance,
+                wall_age=monotonic() - self.last_wall_time,
+                required=bool(self.p("wall_required_for_insert")),
+                stop_distance=float(self.p("wall_stop_distance")),
+                timeout=float(self.p("wall_range_timeout")),
+            )
+            if wall_state == "WALL_NOT_DETECTED":
+                self.publish_stop(wall_state)
+                return
+            if wall_state == "WALL_STOPPED":
+                if self.wall_close_hit_streak < int(
+                    self.p("wall_stop_confirm_frames")
+                ):
+                    wall_state = None
+            if wall_state == "WALL_STOPPED":
+                self.phase = "WALL_STOPPED"
+                self.publish_phase("DOCKED")
+                self.publish_stop(wall_state)
+                return
             if perception_phase == "INSERT_FOOT":
                 self.top_handoff_search_start_along = None
             elif bool(self.p("stop_on_top_handoff")):

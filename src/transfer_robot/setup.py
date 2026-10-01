@@ -24,8 +24,10 @@ setup(
     entry_points={
         "console_scripts": [
             "bed_detector_node = transfer_robot.node:main",
+            "docking_console = transfer_robot.docking_console:main",
             "docking_controller_node = transfer_robot.docking_controller_node:main",
             "platform_mode_bridge = transfer_robot.platform_mode_bridge:main",
+            "wall_detector_node = transfer_robot.wall_detector_node:main",
         ]
     },
 )

@@ -72,6 +72,26 @@ def generate_launch_description():
             ),
             Node(
                 package="transfer_robot",
+                executable="wall_detector_node",
+                name="wall_detector",
+                output="screen",
+                # NumPy may otherwise create several BLAS workers for this one
+                # process and delay the independent bed detector callback.
+                additional_env={
+                    "OPENBLAS_NUM_THREADS": "1",
+                    "OMP_NUM_THREADS": "1",
+                    "MKL_NUM_THREADS": "1",
+                },
+                parameters=[
+                    detector_config,
+                    {
+                        "base_frame": base_frame,
+                        "bed_axis_yaw": bed_axis_yaw,
+                    },
+                ],
+            ),
+            Node(
+                package="transfer_robot",
                 executable="docking_controller_node",
                 name="docking_controller",
                 output="screen",
